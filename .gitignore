@@ -1,27 +1,21 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.env
-.venv
-venv/
-ENV/
-
-# PyTorch & YOLO Weights
-*.pt
-*.pth
-
-# Project Data & Artifacts
+# Bỏ qua thư mục chứa data (nhưng giữ lại cấu trúc thư mục thông qua .gitkeep)
 data/*
 !data/.gitkeep
-assets/*
-!assets/.gitkeep
 
-# IDEs
+# Bỏ qua các file weights nặng trong backend/weights
+backend/weights/*.pt
+backend/weights/*.pth
+!backend/weights/.gitkeep
+
+# Bỏ qua môi trường ảo và cache
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Bỏ qua file cấu hình IDE (tùy chọn)
 .vscode/
 .idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.swp

@@ -4,7 +4,8 @@ import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
 import cv2
-from ..config import DENSENET_MODEL_NAME, CLASS_NAMES
+import os
+from ..config import DENSENET_MODEL_NAME, CLASS_NAMES, DENSENET_WEIGHTS_PATH
 
 class DenseNetClassifier:
     def __init__(self, pretrained: bool = True):
@@ -17,6 +18,14 @@ class DenseNetClassifier:
             # Thay đổi lớp classifier cuối cùng phù hợp với số nhãn (Benign, Malignant, Inflammatory)
             num_ftrs = self.model.classifier.in_features
             self.model.classifier = torch.nn.Linear(num_ftrs, len(CLASS_NAMES))
+            
+            # Nạp custom weights nếu có
+            if os.path.exists(DENSENET_WEIGHTS_PATH):
+                try:
+                    self.model.load_state_dict(torch.load(DENSENET_WEIGHTS_PATH, map_location=self.device))
+                    print(f"[INFO] Loaded custom DenseNet weights from {DENSENET_WEIGHTS_PATH}")
+                except Exception as e:
+                    print(f"[WARNING] Failed to load custom weights from {DENSENET_WEIGHTS_PATH}: {e}. Using pre-trained ImageNet weights.")
             
         self.model.to(self.device)
         self.model.eval()
