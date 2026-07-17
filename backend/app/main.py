@@ -117,3 +117,50 @@ async def analyze_image(
         annotated_b64=annotated_b64,
         lesions=lesions_data
     )
+
+class BlendRequest(BaseModel):
+    original_b64: str
+    bboxes: list[list[int]]
+    heatmaps_b64: list[str]
+    labels: list[str]
+    alpha: float
+
+def b64_to_numpy(b64_str: str):
+    if "," in b64_str:
+        b64_str = b64_str.split(",")[1]
+    img_data = base64.b64decode(b64_str)
+    nparr = np.frombuffer(img_data, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+def b64_to_heatmap(b64_str: str):
+    if "," in b64_str:
+        b64_str = b64_str.split(",")[1]
+    img_data = base64.b64decode(b64_str)
+    nparr = np.frombuffer(img_data, np.uint8)
+    heatmap_uint8 = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
+    if heatmap_uint8 is None:
+        return None
+    return np.float32(heatmap_uint8) / 255.0
+
+@app.post("/api/blend")
+async def blend_images(req: BlendRequest):
+    img = b64_to_numpy(req.original_b64)
+    if img is None:
+        return {"error": "Invalid original image base64"}
+        
+    heatmaps = []
+    for h_b64 in req.heatmaps_b64:
+        h_img = b64_to_heatmap(h_b64)
+        heatmaps.append(h_img)
+        
+    bboxes_for_blend = []
+    for box, label in zip(req.bboxes, req.labels):
+        clean_label = label.split(" (")[0]
+        cls_id = CLASS_NAMES.index(clean_label) if clean_label in CLASS_NAMES else 0
+        bboxes_for_blend.append([box[0], box[1], box[2], box[3], 0.0, cls_id])
+        
+    blended_img = blend_all(img, bboxes_for_blend, heatmaps, req.labels, req.alpha)
+    blended_b64 = numpy_to_b64(blended_img)
+    
+    return {"blended_b64": blended_b64}
+

@@ -19,3 +19,12 @@ __pycache__/
 .vscode/
 .idea/
 *.swp
+
+# Bỏ qua thư mục và file sinh ra bởi Next.js frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env*.local
+.DS_Store
+

@@ -14,7 +14,11 @@ class DenseNetClassifier:
         
         # Load DenseNet121 từ torchvision
         if DENSENET_MODEL_NAME == "densenet121":
-            self.model = models.densenet121(pretrained=pretrained)
+            if pretrained:
+                from torchvision.models import DenseNet121_Weights
+                self.model = models.densenet121(weights=DenseNet121_Weights.DEFAULT)
+            else:
+                self.model = models.densenet121(weights=None)
             # Thay đổi lớp classifier cuối cùng phù hợp với số nhãn (Benign, Malignant, Inflammatory)
             num_ftrs = self.model.classifier.in_features
             self.model.classifier = torch.nn.Linear(num_ftrs, len(CLASS_NAMES))
