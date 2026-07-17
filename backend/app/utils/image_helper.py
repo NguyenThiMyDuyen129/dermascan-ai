@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 
-def crop_bounding_boxes(image: np.ndarray, bboxes: list):
+def crop_bounding_boxes(image: np.ndarray, bboxes: list, padding_ratio: float = 0.25):
     """
-    Cắt các ảnh con (lesion crops) từ ảnh gốc dựa trên danh sách bounding boxes.
+    Cắt các ảnh con (lesion crops) từ ảnh gốc dựa trên danh sách bounding boxes có bổ sung padding.
     bboxes: list of [x1, y1, x2, y2, conf, cls_id]
     Trả về: danh sách các ảnh con (np.ndarray) và tọa độ đã được chuẩn hóa (int).
     """
@@ -12,10 +12,18 @@ def crop_bounding_boxes(image: np.ndarray, bboxes: list):
     refined_bboxes = []
     
     for box in bboxes:
-        x1 = max(0, int(round(box[0])))
-        y1 = max(0, int(round(box[1])))
-        x2 = min(w, int(round(box[2])))
-        y2 = min(h, int(round(box[3])))
+        bx1, by1, bx2, by2 = box[0], box[1], box[2], box[3]
+        bw = bx2 - bx1
+        bh = by2 - by1
+        
+        # Thêm padding xung quanh bounding box
+        pad_w = bw * padding_ratio
+        pad_h = bh * padding_ratio
+        
+        x1 = max(0, int(round(bx1 - pad_w)))
+        y1 = max(0, int(round(by1 - pad_h)))
+        x2 = min(w, int(round(bx2 + pad_w)))
+        y2 = min(h, int(round(by2 + pad_h)))
         
         # Đảm bảo box hợp lệ
         if (x2 - x1) > 0 and (y2 - y1) > 0:
@@ -36,11 +44,15 @@ def blend_all(image: np.ndarray, bboxes: list, heatmaps: list, labels: list, alp
     """
     out_img = image.copy()
     
-    # Định nghĩa màu sắc cho từng class
+    # Định nghĩa 7 màu sắc đặc trưng BGR cho 7 nhóm tổn thương HAM10000
     colors = [
-        (0, 255, 0),    # Benign - Xanh lá
-        (0, 0, 255),    # Malignant - Đỏ
-        (255, 165, 0)   # Inflammatory - Cam
+        (0, 140, 255),  # akiec (Dày sừng quang hóa) - Cam
+        (0, 0, 255),    # bcc (Ung thư biểu mô TB đáy) - Đỏ tươi (Ác tính)
+        (0, 255, 0),    # bkl (Dày sừng lành tính) - Xanh lá
+        (100, 255, 100),# df (U sợi da) - Xanh lá nhạt
+        (0, 0, 180),    # mel (Ung thư hắc tố Melanoma) - Đỏ sẫm (Ác tính nguy hiểm)
+        (255, 200, 0),  # nv (Nốt ruồi hắc tố) - Xanh dương nhạt (Lành tính)
+        (200, 0, 200)   # vasc (Tổn thương mạch máu) - Tím
     ]
 
     for box, heatmap, label in zip(bboxes, heatmaps, labels):

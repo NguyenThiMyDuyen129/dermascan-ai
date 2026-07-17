@@ -11,18 +11,19 @@ class GradCAMEngine:
         self.activations = None
         self.handlers = []
         
-        # Đăng ký hooks để lấy activations và gradients của layer mục tiêu
+        # Đăng ký forward hook để bắt activations và đăng ký tensor hook
         self.handlers.append(self.target_layer.register_forward_hook(self.forward_hook))
-        if hasattr(self.target_layer, 'register_full_backward_hook'):
-            self.handlers.append(self.target_layer.register_full_backward_hook(self.backward_hook))
-        else:
-            self.handlers.append(self.target_layer.register_backward_hook(self.backward_hook))
 
     def forward_hook(self, module, input, output):
-        self.activations = output.detach()
-
-    def backward_hook(self, module, grad_input, grad_output):
-        self.gradients = grad_output[0].detach()
+        # Lưu activations (clone để tránh các thao tác inplace của layer ReLU kế tiếp)
+        self.activations = output.clone()
+        
+        # Đăng ký hook trên tensor để lấy gradients khi thực hiện backward
+        def save_grad(grad):
+            self.gradients = grad.clone()
+            
+        if output.requires_grad:
+            output.register_hook(save_grad)
 
     def remove_hooks(self):
         for handler in self.handlers:
@@ -32,6 +33,9 @@ class GradCAMEngine:
         """
         Sinh heatmap Grad-CAM cho class mục tiêu
         """
+        self.gradients = None
+        self.activations = None
+        
         self.model.zero_grad()
         output = self.model(input_tensor)
         
@@ -39,6 +43,9 @@ class GradCAMEngine:
         score = output[0][target_class_idx]
         score.backward(retain_graph=True)
         
+        if self.gradients is None or self.activations is None:
+            raise RuntimeError("Grad-CAM không thể bắt được gradients hoặc activations. Hãy kiểm tra lại mô hình.")
+            
         # Tính toán Grad-CAM
         gradients = self.gradients[0]      # Shape: (C, H, W)
         activations = self.activations[0]  # Shape: (C, H, W)
@@ -58,5 +65,5 @@ class GradCAMEngine:
         if grad_cam.max() > 0:
             grad_cam = grad_cam / grad_cam.max()
             
-        heatmap = grad_cam.cpu().numpy()
+        heatmap = grad_cam.detach().cpu().numpy()
         return heatmap

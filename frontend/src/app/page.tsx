@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import ImageUploader from '../components/ImageUploader';
 import ResultPanel from '../components/ResultPanel';
-import { Activity, History, AlertCircle, Info } from 'lucide-react';
+import { Activity, History, AlertCircle, Info, ClipboardList } from 'lucide-react';
 
 interface Lesion {
   bbox: number[];
@@ -22,16 +22,23 @@ interface AnalysisResult {
   fileName: string;
 }
 
+const getClassColor = (label: string) => {
+  const l = label.toLowerCase();
+  if (l.includes('mel') || l.includes('bcc')) return 'var(--color-danger)'; // Ác tính - đỏ
+  if (l.includes('akiec')) return 'var(--color-warning)'; // Tiền ung thư - cam
+  return 'var(--color-success)'; // Lành tính - xanh lá
+};
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('scan');
-  
+
   // Trạng thái quét của tab Scan
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  
+
   // Lịch sử chẩn đoán
   const [historyList, setHistoryList] = useState<AnalysisResult[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<AnalysisResult | null>(null);
@@ -40,7 +47,7 @@ export default function Home() {
     setSelectedFile(file);
     setErrorMsg(null);
     setResult(null);
-    
+
     // Đọc file để tạo preview url
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -54,25 +61,25 @@ export default function Home() {
       setErrorMsg("Vui lòng tải ảnh lên trước khi phân tích!");
       return;
     }
-    
+
     setIsAnalyzing(true);
     setErrorMsg(null);
-    
+
     const formData = new FormData();
     formData.append('file', selectedFile);
-    
+
     try {
-      const response = await fetch('/api/analyze?alpha=0.5', {
+      const response = await fetch('http://127.0.0.1:8000/api/analyze?alpha=0.5', {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error("Không thể kết nối với server phân tích.");
       }
-      
+
       const data = await response.json();
-      
+
       const newResult: AnalysisResult = {
         original_b64: data.original_b64,
         annotated_b64: data.annotated_b64,
@@ -80,7 +87,7 @@ export default function Home() {
         timestamp: new Date().toLocaleString('vi-VN'),
         fileName: selectedFile.name
       };
-      
+
       setResult(newResult);
       setHistoryList(prev => [newResult, ...prev]);
     } catch (e: any) {
@@ -94,11 +101,11 @@ export default function Home() {
     <div className="app-container">
       {/* Sidebar bên trái */}
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      
+
       <div className="main-content">
         {/* Header ở trên */}
         <Header />
-        
+
         {/* Nội dung thay đổi theo Tab */}
         <main className="page-body">
           {activeTab === 'scan' ? (
@@ -124,14 +131,14 @@ export default function Home() {
                 <div className="card-panel" style={styles.column}>
                   <h3 style={styles.panelTitle}>1. Ảnh đầu vào</h3>
                   <div style={styles.uploaderWrapper}>
-                    <ImageUploader 
-                      onImageSelected={handleImageSelected} 
-                      selectedImage={previewUrl} 
+                    <ImageUploader
+                      onImageSelected={handleImageSelected}
+                      selectedImage={previewUrl}
                     />
                   </div>
-                  
-                  <button 
-                    onClick={handleAnalyze} 
+
+                  <button
+                    onClick={handleAnalyze}
                     disabled={isAnalyzing || !selectedFile}
                     style={{
                       ...styles.analyzeBtn,
@@ -145,7 +152,7 @@ export default function Home() {
                         <span>Đang xử lý phân tích...</span>
                       </div>
                     ) : (
-                      "🚀 BẮT ĐẦU PHÂN TÍCH Y KHOA"
+                      "BẮT ĐẦU PHÂN TÍCH Y KHOA"
                     )}
                   </button>
                 </div>
@@ -154,7 +161,7 @@ export default function Home() {
                 <div className="card-panel" style={styles.column}>
                   <h3 style={styles.panelTitle}>2. Bản đồ chẩn đoán</h3>
                   {result ? (
-                    <ResultPanel 
+                    <ResultPanel
                       originalB64={result.original_b64}
                       annotatedB64={result.annotated_b64}
                       lesions={result.lesions}
@@ -167,6 +174,48 @@ export default function Home() {
                   )}
                 </div>
               </div>
+
+              {result && (
+                <div className="card-panel" style={styles.fullWidthPanel}>
+                  <div style={styles.sectionHeader}>
+                    <ClipboardList size={22} color="var(--color-text-primary)" />
+                    <h3 style={styles.sectionTitle}>Kết quả chẩn đoán chi tiết</h3>
+                  </div>
+                  {result.lesions.length === 0 ? (
+                    <div style={styles.emptyDiagnosis}>Không phát hiện tổn thương nào trên da.</div>
+                  ) : (
+                    <div style={styles.lesionListHorizontal}>
+                      {result.lesions.map((lesion, index) => (
+                        <div key={index} style={styles.lesionCardFull}>
+                          <div style={styles.lesionHeader}>
+                            <span style={styles.lesionIndex}>Vùng {index + 1}</span>
+                            <span 
+                              style={{
+                                ...styles.lesionBadge,
+                                backgroundColor: getClassColor(lesion.label) + '15',
+                                color: getClassColor(lesion.label),
+                                borderColor: getClassColor(lesion.label)
+                              }}
+                            >
+                              {lesion.label}
+                            </span>
+                          </div>
+                          <div style={styles.lesionBodyHorizontal}>
+                            <div style={styles.infoCol}>
+                              <span style={styles.infoLabel}>Độ tin cậy:</span>
+                              <span style={styles.infoValue}>{(lesion.confidence * 100).toFixed(2)}%</span>
+                            </div>
+                            <div style={styles.infoCol}>
+                              <span style={styles.infoLabel}>Tọa độ BBox:</span>
+                              <span style={styles.infoValue}>[{lesion.bbox.map(v => Math.round(v)).join(', ')}]</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             /* Tab Lịch sử */
@@ -186,8 +235,8 @@ export default function Home() {
                   {/* Danh sách bên trái */}
                   <div style={styles.historyListColumn}>
                     {historyList.map((item, idx) => (
-                      <button 
-                        key={idx} 
+                      <button
+                        key={idx}
                         onClick={() => setSelectedHistory(item)}
                         style={{
                           ...styles.historyItemBtn,
@@ -209,11 +258,52 @@ export default function Home() {
                   {/* Chi tiết bên phải */}
                   <div style={styles.historyDetailColumn}>
                     {selectedHistory ? (
-                      <ResultPanel 
-                        originalB64={selectedHistory.original_b64}
-                        annotatedB64={selectedHistory.annotated_b64}
-                        lesions={selectedHistory.lesions}
-                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <ResultPanel
+                          originalB64={selectedHistory.original_b64}
+                          annotatedB64={selectedHistory.annotated_b64}
+                          lesions={selectedHistory.lesions}
+                        />
+                        <div className="card-panel" style={{ ...styles.fullWidthPanel, marginTop: '10px' }}>
+                          <div style={styles.sectionHeader}>
+                            <ClipboardList size={22} color="var(--color-text-primary)" />
+                            <h3 style={styles.sectionTitle}>Kết quả chẩn đoán chi tiết</h3>
+                          </div>
+                          {selectedHistory.lesions.length === 0 ? (
+                            <div style={styles.emptyDiagnosis}>Không phát hiện tổn thương nào trên da.</div>
+                          ) : (
+                            <div style={styles.lesionListHorizontal}>
+                              {selectedHistory.lesions.map((lesion, index) => (
+                                <div key={index} style={styles.lesionCardFull}>
+                                  <div style={styles.lesionHeader}>
+                                    <span style={styles.lesionIndex}>Vùng {index + 1}</span>
+                                    <span 
+                                      style={{
+                                        ...styles.lesionBadge,
+                                        backgroundColor: getClassColor(lesion.label) + '15',
+                                        color: getClassColor(lesion.label),
+                                        borderColor: getClassColor(lesion.label)
+                                      }}
+                                    >
+                                      {lesion.label}
+                                    </span>
+                                  </div>
+                                  <div style={styles.lesionBodyHorizontal}>
+                                    <div style={styles.infoCol}>
+                                      <span style={styles.infoLabel}>Độ tin cậy:</span>
+                                      <span style={styles.infoValue}>{(lesion.confidence * 100).toFixed(2)}%</span>
+                                    </div>
+                                    <div style={styles.infoCol}>
+                                      <span style={styles.infoLabel}>Tọa độ BBox:</span>
+                                      <span style={styles.infoValue}>[{lesion.bbox.map(v => Math.round(v)).join(', ')}]</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     ) : (
                       <div style={styles.emptyDetailState}>
                         <Info size={32} color="var(--color-text-secondary)" />
@@ -410,5 +500,87 @@ const styles = {
     gap: '10px',
     color: 'var(--color-text-secondary)',
     textAlign: 'center' as const,
+  },
+  fullWidthPanel: {
+    marginTop: '30px',
+    padding: '20px',
+    backgroundColor: '#FFFFFF',
+    border: '1px solid var(--color-border)',
+    borderRadius: '12px',
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+  },
+  sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    borderBottom: '1px solid var(--color-border)',
+    paddingBottom: '12px',
+    marginBottom: '20px',
+  },
+  sectionTitle: {
+    fontSize: '1.2rem',
+    fontWeight: 700,
+    color: 'var(--color-text-primary)',
+  },
+  emptyDiagnosis: {
+    color: 'var(--color-text-secondary)',
+    fontSize: '0.95rem',
+    textAlign: 'center' as const,
+    padding: '20px 0',
+  },
+  lesionListHorizontal: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '15px',
+  },
+  lesionCardFull: {
+    border: '1px solid var(--color-border)',
+    borderRadius: '10px',
+    padding: '14px 16px',
+    backgroundColor: '#F8FAFC',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+    transition: 'all 0.2s ease',
+  },
+  lesionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px',
+    gap: '10px',
+  },
+  lesionIndex: {
+    fontWeight: 800,
+    fontSize: '0.95rem',
+    color: 'var(--color-text-primary)',
+    whiteSpace: 'nowrap' as const,
+  },
+  lesionBadge: {
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    padding: '3px 8px',
+    borderRadius: '12px',
+    border: '1px solid',
+    whiteSpace: 'nowrap' as const,
+  },
+  lesionBodyHorizontal: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+  },
+  infoCol: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '0.85rem',
+  },
+  infoLabel: {
+    color: 'var(--color-text-secondary)',
+    fontWeight: 500,
+    whiteSpace: 'nowrap' as const,
+  },
+  infoValue: {
+    fontWeight: 600,
+    color: 'var(--color-text-primary)',
+    whiteSpace: 'nowrap' as const,
   }
 };

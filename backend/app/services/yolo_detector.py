@@ -1,14 +1,14 @@
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from ..config import YOLO_MODEL_PATH
+from ..config import YOLO_MODEL_PATH, YOLO_CONF_THRESHOLD
 
 class YOLODetector:
     def __init__(self, model_path=YOLO_MODEL_PATH):
         # Tải mô hình YOLOv8
         self.model = YOLO(model_path)
 
-    def detect_lesions(self, image: np.ndarray, conf_threshold: float = 0.25):
+    def detect_lesions(self, image: np.ndarray, conf_threshold: float = YOLO_CONF_THRESHOLD):
         """
         Phát hiện các vùng tổn thương trên da sử dụng YOLOv8.
         Trả về danh sách bounding boxes dưới dạng [x1, y1, x2, y2, confidence, class_id]

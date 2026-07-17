@@ -1,15 +1,17 @@
 :root {
   --color-bg-primary: #FFFFFF;
   --color-bg-secondary: #F8FAFC;
-  --color-text-primary: #0A2540; /* Xanh đậm y tế */
+  --color-text-primary: #0A2540;
+  /* Xanh đậm y tế */
   --color-text-secondary: #627D98;
-  --color-accent: #FF6B35;       /* Cam công nghệ */
+  --color-accent: #c3491c;
+  /* Cam công nghệ */
   --color-accent-hover: #E0531F;
   --color-border: #E2E8F0;
   --color-success: #10B981;
   --color-danger: #EF4444;
-  --color-warning: #F59E0B;
-  
+  --color-warning: #f50b0b;
+
   /* Sử dụng Font chữ hệ thống mặc định để tối ưu tốc độ load, tránh lỗi font khi offline */
   --font-system: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -60,7 +62,10 @@ body {
 }
 
 /* Định dạng tiêu đề */
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-system);
   color: var(--color-text-primary);
   font-weight: 700;
@@ -98,11 +103,25 @@ input[type=range]::-webkit-slider-thumb {
 
 /* Keyframes hiệu ứng quay và nhịp đập */
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.02); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
 }

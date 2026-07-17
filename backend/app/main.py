@@ -6,19 +6,20 @@ from fastapi import FastAPI, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .config import CLASS_NAMES
+from .config import CLASS_NAMES, CLASS_MAP, YOLO_BBOX_PADDING
 from .services.yolo_detector import YOLODetector
 from .services.densenet_classifier import DenseNetClassifier
 from .services.gradcam_engine import GradCAMEngine
 from .utils.image_helper import crop_bounding_boxes, blend_all
+import re
 
 app = FastAPI(title="DermaScan AI API")
 
-# Cấu hình CORS để React Frontend có thể gọi API
+# Cấu hình CORS mở hoàn toàn (Không dùng credentials) tương thích mọi trình duyệt
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -58,6 +59,12 @@ def numpy_to_b64(img: np.ndarray, format: str = ".jpg"):
     _, buffer = cv2.imencode(format, img)
     return base64.b64encode(buffer).decode("utf-8")
 
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "message": "Server is running"}
+
+
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze_image(
     file: UploadFile = File(...),
@@ -74,8 +81,8 @@ async def analyze_image(
     # 2. Bước 1: Phát hiện Bounding Box bằng YOLOv8
     raw_bboxes = detector.detect_lesions(img)
     
-    # Cắt ảnh con theo bboxes
-    crops, refined_bboxes = crop_bounding_boxes(img, raw_bboxes)
+    # Cắt ảnh con theo bboxes có bổ sung padding (mặc định 25%)
+    crops, refined_bboxes = crop_bounding_boxes(img, raw_bboxes, padding_ratio=YOLO_BBOX_PADDING)
     
     lesions_data = []
     heatmaps = []
@@ -85,7 +92,8 @@ async def analyze_image(
     for crop, box in zip(crops, refined_bboxes):
         # Phân loại bằng DenseNet
         pred_label, pred_conf, probs = classifier.classify(crop)
-        labels.append(f"{pred_label} ({pred_conf:.2%})")
+        friendly_label = CLASS_MAP.get(pred_label, pred_label)
+        labels.append(f"{friendly_label} ({pred_conf:.2%})")
         
         # Tính Grad-CAM cho class được dự đoán
         target_class_idx = CLASS_NAMES.index(pred_label)
@@ -103,7 +111,7 @@ async def analyze_image(
         
         lesions_data.append(LesionResponse(
             bbox=box[:4],
-            label=pred_label,
+            label=friendly_label,
             confidence=pred_conf,
             heatmap_b64=heatmap_b64
         ))
@@ -117,6 +125,7 @@ async def analyze_image(
         annotated_b64=annotated_b64,
         lesions=lesions_data
     )
+
 
 class BlendRequest(BaseModel):
     original_b64: str
@@ -142,6 +151,7 @@ def b64_to_heatmap(b64_str: str):
         return None
     return np.float32(heatmap_uint8) / 255.0
 
+
 @app.post("/api/blend")
 async def blend_images(req: BlendRequest):
     img = b64_to_numpy(req.original_b64)
@@ -155,12 +165,16 @@ async def blend_images(req: BlendRequest):
         
     bboxes_for_blend = []
     for box, label in zip(req.bboxes, req.labels):
-        clean_label = label.split(" (")[0]
-        cls_id = CLASS_NAMES.index(clean_label) if clean_label in CLASS_NAMES else 0
+        # Trích xuất từ viết tắt trong ngoặc tròn, ví dụ: "Ung thư hắc tố Melanoma (MEL)" -> "mel"
+        matches = re.findall(r"\(([A-Z]+)\)", label)
+        if matches:
+            abbr = matches[0].lower()
+            cls_id = CLASS_NAMES.index(abbr) if abbr in CLASS_NAMES else 0
+        else:
+            clean_label = label.split(" (")[0].lower()
+            cls_id = CLASS_NAMES.index(clean_label) if clean_label in CLASS_NAMES else 0
         bboxes_for_blend.append([box[0], box[1], box[2], box[3], 0.0, cls_id])
         
-    blended_img = blend_all(img, bboxes_for_blend, heatmaps, req.labels, req.alpha)
-    blended_b64 = numpy_to_b64(blended_img)
-    
     return {"blended_b64": blended_b64}
+
 
