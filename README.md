@@ -62,15 +62,24 @@ Dự án yêu cầu máy tính đã cài đặt **Python 3.9+** và **Node.js 18
 
 ### Bước 2: Khởi chạy Backend FastAPI (Cổng 8000)
 Mở terminal và di chuyển vào thư mục `backend`:
-```powershell
+```bash
 cd backend
-# Tạo môi trường ảo (nếu chưa có)
+
+# 1. Tạo môi trường ảo (nếu chưa có)
 python -m venv venv
-# Kích hoạt môi trường ảo
+
+# 2. Kích hoạt môi trường ảo (Chọn lệnh phù hợp với Terminal của bạn):
+# - Dành cho PowerShell:
 .\venv\Scripts\Activate.ps1
-# Cài đặt thư viện
+# - Dành cho Command Prompt (CMD):
+venv\Scripts\activate
+# - Dành cho Git Bash / Linux / macOS:
+source venv/Scripts/activate
+
+# 3. Cài đặt thư viện
 pip install -r requirements.txt
-# Chạy backend
+
+# 4. Chạy backend
 python run.py
 ```
 *Server API hoạt động tại: `http://127.0.0.1:8000`*
