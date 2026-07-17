@@ -6,6 +6,61 @@ Hệ thống được thiết kế với giao diện Dashboard chạy trên nề
 
 ---
 
+## 📊 Bộ dữ liệu Huấn luyện (HAM10000 Dataset)
+
+Hệ thống sử dụng mô hình được huấn luyện trên bộ dữ liệu nghiên cứu da liễu quốc tế **Skin Cancer MNIST: HAM10000** (được lưu trữ và tải từ Kaggle/Harvard Dataverse). Cấu trúc của bộ dữ liệu bao gồm các tệp tin sau:
+
+*   `HAM10000_images_part_1/`: Thư mục chứa phần thứ nhất của bộ ảnh da liễu gốc (dạng ảnh màu JPEG có độ phân giải gốc cao).
+*   `HAM10000_images_part_2/`: Thư mục chứa phần thứ hai của bộ ảnh da liễu gốc.
+*   `HAM10000_metadata.csv`: Tệp chứa thông tin thuộc tính lâm sàng của từng ca bệnh, bao gồm:
+    *   `lesion_id`: Mã định danh ca bệnh tổn thương.
+    *   `image_id`: Tên file ảnh tương ứng.
+    *   `dx`: Nhãn chẩn đoán bệnh lý viết tắt (ví dụ: `mel`, `nv`, `bcc`,...).
+    *   `dx_type`: Phương pháp xác thực lâm sàng (chụp cắt lớp, sinh thiết, ý kiến chuyên gia).
+    *   `age`: Tuổi của bệnh nhân.
+    *   `sex`: Giới tính của bệnh nhân.
+    *   `localization`: Vị trí giải phẫu xuất hiện tổn thương trên cơ thể.
+*   Tệp nén biểu diễn pixel mức thấp (phục vụ các bài toán phân loại nhanh):
+    *   `hmnist_28_28_L.csv`: Tệp dữ liệu ảnh mức xám (Grayscale) kích thước 28x28 pixel được dàn phẳng (flattened) thành dạng bảng.
+    *   `hmnist_28_28_RGB.csv`: Tệp dữ liệu ảnh màu (RGB) kích thước 28x28 pixel được dàn phẳng thành dạng bảng.
+    *   `hmnist_8_8_L.csv`: Tệp dữ liệu ảnh mức xám kích thước 8x8 pixel dạng bảng phẳng.
+    *   `hmnist_8_8_RGB.csv`: Tệp dữ liệu ảnh màu kích thước 8x8 pixel dạng bảng phẳng.
+
+---
+
+## 🔄 Hướng dẫn Cập nhật Mô hình sau khi Huấn luyện trên Kaggle
+
+Sau khi hoàn thành việc huấn luyện (train) mô hình phát hiện (YOLOv8) hoặc mô hình phân loại (DenseNet121) trên môi trường điện toán đám mây Kaggle, bạn thực hiện quy trình sau để tích hợp trọng số mới vào dự án cục bộ:
+
+### Bước 1: Tải tệp trọng số từ Kaggle
+Tải xuống các tệp trọng số đầu ra (Output Weights) của phiên huấn luyện:
+*   Mô hình YOLOv8: Tải file trọng số tốt nhất `best.pt`.
+*   Mô hình DenseNet121: Tải file lưu trọng số mạng tốt nhất (định dạng thông thường là `.pth` hoặc `.pt`).
+
+### Bước 2: Di chuyển trọng số vào thư mục dự án
+Sao chép và thay thế các tệp tin trọng số mới vào thư mục lưu trữ weights của Backend:
+*   Đối với YOLOv8: Đổi tên tệp `best.pt` thành `yolo_best.pt` và đặt vào:
+    `d:\Project\XLA_dermascan-ai\backend\weights\yolo_best.pt`
+*   Đối với DenseNet121: Đặt file trọng số phân loại (đổi tên thành `best_densenet.pth`) vào:
+    `d:\Project\XLA_dermascan-ai\backend\weights\best_densenet.pth`
+
+### Bước 3: Kiểm tra Pipeline cục bộ bằng Script
+Chạy script kiểm tra ngoại tuyến để xác nhận các trọng số mới tương thích tốt với mã nguồn và không gây ra lỗi xử lý hình ảnh:
+1. Kích hoạt môi trường ảo `venv` của backend.
+2. Chạy tệp tin kiểm tra:
+   ```bash
+   python test_pipeline.py
+   ```
+*Nếu đầu ra hiển thị thông báo `✅ PIPELINE RUN COMPLETED SUCCESSFULLY WITHOUT ERRORS!` thì mô hình mới đã tương thích hoàn toàn.*
+
+### Bước 4: Khởi động lại API Server
+Tiến hành chạy lại server FastAPI để hệ thống áp dụng các mô hình mới:
+```bash
+python run.py
+```
+
+---
+
 ## 🛠️ Công nghệ Sử dụng (Tech Stack)
 
 ### 1. Backend
