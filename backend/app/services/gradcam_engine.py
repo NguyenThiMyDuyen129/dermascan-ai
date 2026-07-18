@@ -66,4 +66,9 @@ class GradCAMEngine:
             grad_cam = grad_cam / grad_cam.max()
             
         heatmap = grad_cam.detach().cpu().numpy()
+        
+        # Áp dụng hiệu chỉnh Gamma (gamma = 2.0) để tăng độ tương phản của các điểm nóng cực đại
+        # và loại bỏ kích hoạt nhòe/nhiễu xung quanh vùng tổn thương.
+        heatmap = np.power(heatmap, 2.0)
+        
         return heatmap
